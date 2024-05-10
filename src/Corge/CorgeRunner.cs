@@ -1,5 +1,4 @@
 ﻿using Spectre.Console;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Corge;
 public class CorgeRunner
