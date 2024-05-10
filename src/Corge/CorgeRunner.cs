@@ -12,11 +12,8 @@ public class CorgeRunner
         var player = new Actor("Player", "gold3_1");
         var dialogHandler = new DialogHandler(bus, player);
 
-
-        var stefan = new Actor("Stefan", "darkorange3");
-
-        var sentence_1 = new Sentence(stefan, "Cześć");
-        var sentence_2 = new Sentence(stefan, "Myślałem że nie żyjesz");
+        var sentence_1 = new Sentence("Cześć");
+        var sentence_2 = new Sentence("Myślałem że nie żyjesz");
 
         var option_1 = new DecisionOption("Tak, też tak myślałem");
         var option_2 = new DecisionOption("Kim jesteś?");
@@ -29,16 +26,20 @@ public class CorgeRunner
                 option_3,
             ]);
 
+        var dialogueItems = new IDialogueItem[] 
+        {
+            sentence_1,
+            sentence_2,
+            decision_1
+        };
+
         var sentenceRelations = new ItemRelation[] 
         {
             new (sentence_1.Id, sentence_2.Id),
             new (sentence_2.Id, decision_1.Id),
         };
 
-        dialogHandler.Say(stefan, "Cześć, przyjacielu");
-        dialogHandler.Say(stefan, "pewnie się zastanawiasz, jak się tutaj znalazłeś");
-
-        dialogHandler.Ask(["Kim jesteś?", "Co tutaj robie?", "Cześć"]);
+        var stefan = new Actor("Stefan", "darkorange3", () => { });
 
         Console.ReadKey();
     }
@@ -51,7 +52,7 @@ public interface IDialogueItem
     Guid Id { get; }
 }
 
-public record Sentence(Actor Actor, string Text) : IDialogueItem
+public record Sentence(string Text) : IDialogueItem
 {
     public Guid Id { get; } = Guid.NewGuid();
 }
@@ -63,11 +64,7 @@ public record Decision(DecisionOption[] Options) : IDialogueItem
 
 public record DecisionOption(string Text);
 
-public class Actor(string name, string color)
-{
-    public string Name { get; } = name;
-    public string Color { get; } = color;
-}
+public record Actor(string Name, string Color, Action? StartConversation = null);
 
 public class DialogHandler(EventBus bus, Actor player)
 {
