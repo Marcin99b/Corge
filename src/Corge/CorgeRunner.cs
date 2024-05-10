@@ -8,7 +8,6 @@ public class CorgeRunner
         var bus = new EventBus();
 
         bus.Subscribe<PlayerDecidedEvent>(x => Console.WriteLine(x.Decision));
-        bus.Subscribe<PlayerDecidedEvent>(x => Console.WriteLine(x.Decision));
 
         var player = new Actor("Player", "gold3_1");
         var dialogHandler = new DialogHandler(bus, player);
@@ -22,6 +21,7 @@ public class CorgeRunner
         Console.ReadKey();
     }
 }
+
 
 public class Actor(string name, string color)
 {
@@ -50,34 +50,3 @@ public interface IEvent
 }
 
 public record PlayerDecidedEvent(string Decision) : IEvent;
-
-public class EventBus
-{
-    private readonly Dictionary<Type, List<Action<dynamic>>> subscriptions = new();
-
-    public void Subscribe<T>(Action<T> action) 
-        where T : class, IEvent
-    {
-        var t = typeof(T);
-        Action<dynamic> dyn = x => action(x);
-        if (this.subscriptions.ContainsKey(t))
-        {
-            this.subscriptions[t].Add(dyn);
-        } 
-        else
-        {
-            this.subscriptions.Add(t, [dyn]);
-        }
-    }
-
-    public void Publish(IEvent @event)
-    {
-        if (this.subscriptions.TryGetValue(@event.GetType(), out var list))
-        {
-            foreach (var item in list)
-            {
-                item(@event);
-            }
-        }
-    }
-}
