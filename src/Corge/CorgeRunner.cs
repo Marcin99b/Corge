@@ -7,11 +7,6 @@ public class CorgeRunner
     {
         var bus = new EventBus();
 
-        bus.Subscribe<PlayerDecidedEvent>(x => Console.WriteLine(x.Decision));
-
-        var player = new Actor("Player", "gold3_1");
-        var dialogHandler = new DialogHandler(bus, player);
-
         var sentence_1 = new Sentence("Cześć");
         var sentence_2 = new Sentence("Myślałem że nie żyjesz");
 
@@ -33,19 +28,41 @@ public class CorgeRunner
             decision_1
         };
 
+        var stefan = new Actor("Stefan", "darkorange3", sentence_1.Id);
+
         var sentenceRelations = new ItemRelation[] 
         {
-            new (sentence_1.Id, sentence_2.Id),
-            new (sentence_2.Id, decision_1.Id),
+            new (stefan.Id, sentence_1.Id, sentence_2.Id),
+            new (stefan.Id, sentence_2.Id, decision_1.Id),
         };
 
-        var stefan = new Actor("Stefan", "darkorange3", () => { });
+        var actors = new Actor[]
+        {
+            stefan
+        };
+
+        var dialogHandler = new DialogueHandler(bus);
+
+        bus.Subscribe<PlayerStartedConversationEvent>(x => 
+        {
+            var actor = actors.First(actor => actor.Id == x.ActorId);
+            var dialogueItem = dialogueItems.First(d => d.Id == actor.StartId);
+        });
+
+        bus.Subscribe<SentenceFinishedEvent>(x => 
+        {
+            var relation = sentenceRelations.First(s => s.FromId == x.SentenceId);
+            var actor = actors.First(a => a.Id == relation.ActorId);
+            var nextItem = dialogueItems.First(i => i.Id == relation.ContinueId);
+        });
+
+        bus.Publish(new PlayerStartedConversationEvent(stefan.Id));
 
         Console.ReadKey();
     }
 }
 
-public record ItemRelation(Guid FromId, Guid ContinueId, Action? Action = null);
+public record ItemRelation(Guid ActorId, Guid FromId, Guid ContinueId, Action? Action = null);
 
 public interface IDialogueItem
 {
@@ -62,22 +79,28 @@ public record Decision(DecisionOption[] Options) : IDialogueItem
     public Guid Id { get; } = Guid.NewGuid();
 }
 
-public record DecisionOption(string Text);
-
-public record Actor(string Name, string Color, Action? StartConversation = null);
-
-public class DialogHandler(EventBus bus, Actor player)
+public record DecisionOption(string Text)
 {
-    public void Say(Actor actor, string message)
+    public Guid Id { get; } = Guid.NewGuid();
+}
+
+public record Actor(string Name, string Color, Guid StartId)
+{
+    public Guid Id { get; } = Guid.NewGuid();
+}
+
+public class DialogueHandler(EventBus bus) 
+{
+    public void Say(Actor actor, Sentence sentence)
     {
-        AnsiConsole.Markup($"[{actor.Color}]{actor.Name}: [/][grey84]{message}[/]\n");
+        AnsiConsole.Markup($"[{actor.Color}]{actor.Name}: [/][grey84]{sentence.Text}[/]\n");
     }
 
-    public string Ask(string[] decisions)
+    public string Ask(Decision decision)
     {
-        var response = AnsiConsole.Prompt(new SelectionPrompt<string>().AddChoices(decisions));
-        this.Say(player, response);
-        bus.Publish(new PlayerDecidedEvent(response));
+        var response = AnsiConsole.Prompt(new SelectionPrompt<string>().AddChoices(decision.Options.Select(x => x.Text)));
+        var option = decision.Options.First(x => x.Text == response);
+        bus.Publish(new PlayerDecidedEvent(decision.Id, option.Id));
         return response;
     }
 }
@@ -86,4 +109,6 @@ public interface IEvent
 {
 }
 
-public record PlayerDecidedEvent(string Decision) : IEvent;
+public record PlayerStartedConversationEvent(Guid ActorId) : IEvent;
+public record PlayerDecidedEvent(Guid DecisionId, Guid OptionId) : IEvent;
+public record SentenceFinishedEvent(Guid SentenceId) : IEvent;
