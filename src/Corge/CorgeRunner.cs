@@ -1,4 +1,5 @@
 ﻿using Spectre.Console;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Corge;
 public class CorgeRunner
@@ -10,13 +11,13 @@ public class CorgeRunner
         var sentence_1 = new Sentence("Cześć");
         var sentence_2 = new Sentence("Myślałem że nie żyjesz");
 
-        var option_1 = new DecisionOption("Tak, też tak myślałem");
+        var option_1 = new DecisionOption("Tak, też tak myślałem", true);
         var sentence_3 = new Sentence("Długo tu leżałeś");
 
-        var option_2 = new DecisionOption("Kim jesteś?");
+        var option_2 = new DecisionOption("Kim jesteś?", false);
         var sentence_4 = new Sentence("Na razie nie mogę ci powiedzieć");
 
-        var option_3 = new DecisionOption("Gdzie ja jestem?");
+        var option_3 = new DecisionOption("Gdzie ja jestem?", true);
         var sentence_5 = new Sentence("Nawet gdybym ci powiedział, to byś nie zrozumiał");
 
         var decision_1 = new Decision(
@@ -35,6 +36,8 @@ public class CorgeRunner
             sentence_4,
             sentence_5,
         };
+
+        var usedOptions = new List<Guid>();
 
         var stefan = new Actor("Stefan", "darkorange3", sentence_1.Id);
 
@@ -57,7 +60,7 @@ public class CorgeRunner
             stefan
         };
 
-        var dialogHandler = new DialogueHandler(bus);
+        var dialogHandler = new DialogueHandler(bus, usedOptions);
 
         bus.Subscribe<PlayerStartedConversationEvent>(x => 
         {
@@ -91,6 +94,8 @@ public class CorgeRunner
 
         bus.Subscribe<PlayerDecidedEvent>(x => 
         {
+            usedOptions.Add(x.OptionId);
+
             var relation = sentenceRelations.First(s => s.FromId == x.OptionId);
             var actor = actors.First(a => a.Id == relation.ActorId);
             var nextItem = dialogueItems.First(i => i.Id == relation.ContinueId);
@@ -128,7 +133,7 @@ public record Decision(DecisionOption[] Options) : IDialogueItem
     public Guid Id { get; } = Guid.NewGuid();
 }
 
-public record DecisionOption(string Text)
+public record DecisionOption(string Text, bool HideAfterUsed)
 {
     public Guid Id { get; } = Guid.NewGuid();
 }
@@ -138,7 +143,7 @@ public record Actor(string Name, string Color, Guid StartId)
     public Guid Id { get; } = Guid.NewGuid();
 }
 
-public class DialogueHandler(EventBus bus) 
+public class DialogueHandler(EventBus bus, List<Guid> usedOptions) 
 {
     public void Say(Actor actor, Sentence sentence)
     {
@@ -148,7 +153,12 @@ public class DialogueHandler(EventBus bus)
 
     public string Ask(Decision decision)
     {
-        var response = AnsiConsole.Prompt(new SelectionPrompt<string>().AddChoices(decision.Options.Select(x => x.Text)));
+        var optionsToShow = decision.Options
+            .Where(x => !x.HideAfterUsed || !usedOptions.Contains(x.Id))
+            .Select(x => x.Text);
+
+        var response = AnsiConsole.Prompt(new SelectionPrompt<string>()
+            .AddChoices(optionsToShow));
         AnsiConsole.Markup($"[gold3_1]Ty: [/][grey84]{response}[/]\n");
         var option = decision.Options.First(x => x.Text == response);
         bus.Publish(new PlayerDecidedEvent(option.Id));
