@@ -3,6 +3,82 @@ using Corge.Events;
 using Corge.Events.Handlers;
 
 namespace Corge;
+
+public class CorgeBuilder
+{
+    private readonly Storage storage = new ();
+
+    public ActorDialogueBuilder SetupActorDialogue(string name, string color)
+    {
+        return new ActorDialogueBuilder(this.storage, this, name, color);
+    }
+
+    public class ActorDialogueBuilder(Storage s, CorgeBuilder b, string name, string color)
+    {
+        public SentenceCreatedBuilder StartFromSentence(string text)
+        {
+            var sentence = new Sentence(text);
+            var actor = new Actor(name, color, sentence.Id);
+            s.Actors.Add(actor);
+            s.DialogueItems.Add(sentence);
+
+            return new SentenceCreatedBuilder(s, this, actor, sentence);
+        }
+
+        public CorgeBuilder Build() => b;
+    }
+
+    public class SentenceCreatedBuilder(Storage s, ActorDialogueBuilder b, Actor a, Sentence sentence)
+    {
+        public SentenceCreatedBuilder ContinueWithSentence(string text)
+        {
+            var newSentence = new Sentence(text);
+            s.DialogueItems.Add(newSentence);
+            s.SentenceRelations.Add(new ItemRelation(a.Id, sentence.Id, newSentence.Id));
+
+            return new SentenceCreatedBuilder(s, b, a, newSentence);
+        }
+
+        public DecisionBuilder ContinueWithDecision()
+        {
+            return new DecisionBuilder(s, b, a);
+        }
+
+        public ActorDialogueBuilder Build() => b;
+    }
+
+    public class DecisionBuilder(Storage s, ActorDialogueBuilder b, Actor a)
+    {
+        public OptionBuilder AddOption(string text, bool hideAfterUsed)
+        {
+            var option = new DecisionOption(text, hideAfterUsed);
+            return new OptionBuilder(s, this, option, a);
+        }
+
+        public ActorDialogueBuilder Build() => b;
+    }
+
+    public class OptionBuilder(Storage s, DecisionBuilder b, DecisionOption option, Actor a)
+    {
+        public SentenceAnswerCreatedBuilder SetAnswer(string text)
+        {
+            var sentence = new Sentence(text);
+            return new SentenceAnswerCreatedBuilder(s, b, a, sentence);
+        }
+    }
+
+    public class SentenceAnswerCreatedBuilder(Storage s, DecisionBuilder b, Actor a, Sentence sentence)
+    {
+        public SentenceAnswerCreatedBuilder ContinueWithSentence(string text)
+        {
+            var sentence = new Sentence(text);
+            return new SentenceAnswerCreatedBuilder(s, b, a, sentence);
+        }
+
+        public DecisionBuilder Build() => b;
+    }
+}
+
 public class CorgeRunner
 {
     public void Run()
@@ -81,9 +157,9 @@ public class CorgeRunner
         var container = builder.Build();
 
         var storage = container.Resolve<Storage>();
-        storage.Actors = actors;
-        storage.DialogueItems = dialogueItems;
-        storage.SentenceRelations = sentenceRelations;
+        storage.Actors = actors.ToList();
+        storage.DialogueItems = dialogueItems.ToList();
+        storage.SentenceRelations = sentenceRelations.ToList();
         storage.UsedOptions = usedOptions;
 
         var bus = container.Resolve<IEventBus>();
@@ -99,15 +175,15 @@ public class CorgeRunner
     }
 }
 
-public record ItemRelation(Guid ActorId, Guid FromId, Guid ContinueId, Action? Action = null);
+public record ItemRelation(Guid ActorId, Guid FromId, Guid ContinueId);
 
 
 public class Storage
 {
-    public required IDialogueItem[] DialogueItems { get; set; }
-    public required List<Guid> UsedOptions { get; set; }
-    public required ItemRelation[] SentenceRelations { get; set; }
-    public required Actor[] Actors { get; set; }
+    public List<IDialogueItem> DialogueItems { get; set; } = [];
+    public List<Guid> UsedOptions { get; set; } = [];
+    public List<ItemRelation> SentenceRelations { get; set; } = [];
+    public List<Actor> Actors { get; set; } = [];
 }
 
 public interface IDialogueItem
