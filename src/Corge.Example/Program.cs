@@ -3,9 +3,7 @@
 
 
 
-
-var builder = new CorgeBuilder();
-builder
+var storage = new CorgeBuilder()
     .SetupActorDialogue("Stephen", "darkorange3")
         .StartFromSentence("Hello")
             .ContinueWithSentence("I thought you are dead")
@@ -19,11 +17,11 @@ builder
                     .SetAnswer("That's weird")
                     .Build()
                 .Build()
-            .Build();
+            .Build()
+        .Build();
 
 
 
 
 
-var runner = new CorgeRunner();
-runner.Run();
+CorgeRunner.FromStorage(storage).Run();
