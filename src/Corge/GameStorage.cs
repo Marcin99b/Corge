@@ -36,13 +36,22 @@ public class DialogueSetupHandler<T>(T prevObject, GameStorage storage, Actor ac
         return new DialogueSetupHandler<DialogueSetupHandler<T>>(this, storage, actor, newSentence);
     }
 
+    public T ExitDialogue()
+    {
+        var exit = new ExitDialogue();
+        storage.DialogueItems.Add(exit);
+        storage.SentenceRelations.Add(new ItemRelation(actor.Id, previous.Id, exit.Id));
+
+        return this.Return();
+    }
+
     public DialogueSetupHandler<DialogueSetupHandler<T>> MultiSentence(params string[] texts)
     {
         var prev = previous;
 
         foreach (var text in texts)
         {
-            var newSentence = new Sentence(texts.First());
+            var newSentence = new Sentence(text);
             storage.DialogueItems.Add(newSentence);
             storage.SentenceRelations.Add(new ItemRelation(actor.Id, prev.Id, newSentence.Id));
             prev = newSentence;
@@ -54,6 +63,17 @@ public class DialogueSetupHandler<T>(T prevObject, GameStorage storage, Actor ac
     public T Return()
     {
         return prevObject;
+    }
+
+    public GameStorage Build()
+    {
+        dynamic obj = this.Return();
+        while (obj is not GameStorage)
+        {
+            obj = obj?.Return();
+        }
+
+        return obj;
     }
 }
 
@@ -74,6 +94,63 @@ public class DecisionBuilder<T>(T prevObject, GameStorage storage, Actor actor, 
         storage.DialogueItems.Add(decision);
         storage.SentenceRelations.Add(new ItemRelation(actor.Id, previous.Id, decision.Id));
 
+        foreach (var answerId in this.FindNotEndingDialoguesStartedFromCurrentDecision(decision))
+        {
+            storage.SentenceRelations.Add(new ItemRelation(actor.Id, answerId, decision.Id));
+        }
+
+
         return prevObject;
+    }
+
+    private IEnumerable<Guid> FindNotEndingDialoguesStartedFromCurrentDecision(Decision decision)
+    {
+        var isExit = (Guid x) => storage.DialogueItems.First(i => i.Id == x) is ExitDialogue;
+
+        var sentencesStartedFromCurrentOptions = storage
+            .SentenceRelations
+            .Where(x => this.options.Any(c => c.Id == x.FromId))
+            .ToArray();
+        foreach (var sentence in sentencesStartedFromCurrentOptions)
+        {
+            var history = new List<Guid>() { decision.Id };
+
+            var current = sentence.ContinueId;
+            while (true)
+            {
+                if (history.Contains(current))
+                {
+                    break;
+                }
+
+                history.Add(current);
+                if (isExit(current))
+                {
+                    break;
+                }
+
+                var nextItem = storage.SentenceRelations.FirstOrDefault(x => x.FromId == current);
+                if (nextItem == null)
+                {
+                    yield return current;
+                    break;
+                }
+                else
+                {
+                    current = nextItem!.ContinueId;
+                }
+            }
+        }
+    }
+
+    public GameStorage Build()
+    {
+        dynamic obj = this.Return()!;
+        while (obj is not GameStorage) 
+        {
+            obj = obj!.Return();
+        }
+
+        return (GameStorage) obj;
     }
 }

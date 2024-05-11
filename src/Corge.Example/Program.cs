@@ -1,34 +1,42 @@
 ﻿using Corge;
 
-//var storage = new CorgeBuilder()
-//    .SetPlayerName("You")
-//    .SetupActorDialogue("Stephen", "darkorange3")
-//        .StartFromSentence("Hello")
-//            .ContinueWithSentence("I thought you are dead")
-//            .ContinueWithSentence("But...")
-//            .ContinueWithSentence("Who you are?")
-//            .ContinueWithDecision()
-//                .AddOption("What happened?", hideAfterUsed: false)
-//                    .SetAnswer("There was a storm and looks like you are the only survivor")
-//                    .Build()
-//                .AddOption("I am... I don't remember who I am...", hideAfterUsed: true)
-//                    .SetAnswer("That's weird")
-//                    .ContinueWithSentence("You lost all you memories?")
-//                    .Build()
-//                .AddExitOption("Exit", hideAfterUsed: false)
-//                .Build()
-//            .Build()
-//        .Build();
-
-var gameStorage = new GameStorage();
-gameStorage
+var gameStorage = new GameStorage()
     .Actor("Stephen", color: "darkorange3", defaultSentence: "Hello")
-    .MultiSentence(
-        "I thought you are dead",
-        "But...",
-        "Who you are?"
-    )
+        .MultiSentence(
+            "I thought you are dead",
+            "But...",
+            "Who you are?"
+        )
+        .Decision()
+            .AddOption("What happened?", hideAfterUser: true)
+                .MultiSentence(
+                    "There was a storm", 
+                    "Looks like you are the only survivor"
+                )
+                .Return().Return()
+            .AddOption("I don't remember who I am", hideAfterUser: false)
+                .Sentence("That's weird")
+                .Decision()
+                    .AddOption("Where we are?", hideAfterUser: false)
+                        .Sentence("On the beach of big island")
+                        .ExitDialogue()
+                        .Return()
+                    .AddOption("How did you found me?", hideAfterUser: false)
+                        .Sentence("I was walking through the beach")
+                        .Return()
+                        .Return()
+                .Return()
+                .Return()
+                .Return()
+            .AddOption("I have to look around", hideAfterUser: false)
+            .ExitDialogue()
+            .Return()
+            .Return()
+            .Return()
+    .Actor("Adam", color: "darkorange3", defaultSentence: "I have no time")
     .Decision()
-        .AddOption("What happened?", hideAfterUser: false);
+        .AddOption("Bye", hideAfterUser: false)
+        .ExitDialogue()
+.Build();
 
 CorgeRunner.FromStorage(gameStorage).Run();
