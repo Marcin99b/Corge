@@ -3,7 +3,7 @@
 internal class DialogueItemSelectedEventHandler(
     IEventBus bus,
     IDialogueHandler dialogueHandler,
-    Storage storage)
+    GameStorage storage)
     : IEventHandler<DialogueItemSelectedEvent>
 {
     public void Execute(DialogueItemSelectedEvent evnt)

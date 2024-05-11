@@ -1,6 +1,6 @@
 ﻿namespace Corge.Events.Handlers;
 
-internal class PlayerDecidedEventHandler(IEventBus bus, Storage storage) : IEventHandler<PlayerDecidedEvent>
+internal class PlayerDecidedEventHandler(IEventBus bus, GameStorage storage) : IEventHandler<PlayerDecidedEvent>
 {
     public void Execute(PlayerDecidedEvent evnt)
     {

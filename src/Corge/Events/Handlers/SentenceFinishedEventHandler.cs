@@ -1,6 +1,6 @@
 ﻿namespace Corge.Events.Handlers;
 
-internal class SentenceFinishedEventHandler(IEventBus bus, Storage storage) : IEventHandler<SentenceFinishedEvent>
+internal class SentenceFinishedEventHandler(IEventBus bus, GameStorage storage) : IEventHandler<SentenceFinishedEvent>
 {
     public void Execute(SentenceFinishedEvent evnt)
     {

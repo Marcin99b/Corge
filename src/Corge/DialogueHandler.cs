@@ -8,7 +8,7 @@ public interface IDialogueHandler
     void Say(Actor actor, Sentence sentence);
 }
 
-public class DialogueHandler(Storage storage) : IDialogueHandler
+public class DialogueHandler(GameStorage storage) : IDialogueHandler
 {
     public void Say(Actor actor, Sentence sentence)
     {
@@ -30,7 +30,7 @@ public class DialogueHandler(Storage storage) : IDialogueHandler
             _ => throw new NotImplementedException(),
         };
 
-        AnsiConsole.Markup($"[gold3_1]Ty: [/][grey84]{response}[/]\n");
+        AnsiConsole.Markup($"[gold3_1]{storage.PlayerName}: [/][grey84]{response}[/]\n");
         var option = decision.Options.First(x => x.Text == response);
         return option;
     }
