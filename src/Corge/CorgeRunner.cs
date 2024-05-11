@@ -1,4 +1,5 @@
-﻿using Spectre.Console;
+﻿using Autofac;
+using Corge.Events;
 
 namespace Corge;
 public class CorgeRunner
@@ -59,53 +60,63 @@ public class CorgeRunner
             stefan
         };
 
+        var storage = new Storage()
+        {
+            Actors = actors,
+            DialogueItems = dialogueItems,
+            SentenceRelations = sentenceRelations,
+            UsedOptions = usedOptions
+        };
+
         var dialogHandler = new DialogueHandler(bus, usedOptions);
+
+        var builder = new ContainerBuilder();
+
+        builder.RegisterType<DialogueHandler>()
+            .As<IDialogueHandler>()
+            .SingleInstance();
+
+        builder.RegisterType<EventBus>()
+            .As<IEventBus>()
+            .SingleInstance();
+
+        builder.RegisterType<Storage>()
+            .AsSelf()
+            .SingleInstance();
 
         bus.Subscribe<PlayerStartedConversationEvent>(x => 
         {
             var actor = actors.First(actor => actor.Id == x.ActorId);
-            var dialogueItem = dialogueItems.First(d => d.Id == actor.StartId);
-            if (dialogueItem is Sentence sentence)
-            {
-                dialogHandler.Say(actor, sentence);
-            }
-            else if (dialogueItem is Decision decision)
-            {
-                dialogHandler.Ask(decision);
-            }
+            bus.Publish(new DialogueItemSelectedEvent(actor.Id, actor.StartId));
         });
 
         bus.Subscribe<SentenceFinishedEvent>(x => 
         {
             var relation = sentenceRelations.First(s => s.FromId == x.SentenceId);
-            var actor = actors.First(a => a.Id == relation.ActorId);
-            var nextItem = dialogueItems.First(i => i.Id == relation.ContinueId);
-
-            if(nextItem is Sentence sentence)
-            {
-                dialogHandler.Say(actor, sentence);
-            } 
-            else if (nextItem is Decision decision) 
-            {
-                dialogHandler.Ask(decision);
-            }
+            bus.Publish(new DialogueItemSelectedEvent(relation.ActorId, relation.ContinueId));
         });
 
         bus.Subscribe<PlayerDecidedEvent>(x => 
         {
             usedOptions.Add(x.OptionId);
-
             var relation = sentenceRelations.First(s => s.FromId == x.OptionId);
-            var actor = actors.First(a => a.Id == relation.ActorId);
-            var nextItem = dialogueItems.First(i => i.Id == relation.ContinueId);
+            bus.Publish(new DialogueItemSelectedEvent(relation.ActorId, relation.ContinueId));
+        });
+
+        bus.Subscribe<DialogueItemSelectedEvent>(x => 
+        {
+            var actor = actors.First(a => a.Id == x.ActorId);
+            var nextItem = dialogueItems.First(i => i.Id == x.ItemId);
 
             if (nextItem is Sentence sentence)
             {
                 dialogHandler.Say(actor, sentence);
+                bus.Publish(new SentenceFinishedEvent(sentence.Id));
             }
             else if (nextItem is Decision decision)
             {
-                dialogHandler.Ask(decision);
+                var option = dialogHandler.Ask(decision);
+                bus.Publish(new PlayerDecidedEvent(option.Id));
             }
         });
 
@@ -116,6 +127,15 @@ public class CorgeRunner
 }
 
 public record ItemRelation(Guid ActorId, Guid FromId, Guid ContinueId, Action? Action = null);
+
+
+public class Storage
+{
+    public IDialogueItem[] DialogueItems { get; set; }
+    public List<Guid> UsedOptions { get; set; }
+    public ItemRelation[] SentenceRelations { get; set; }
+    public Actor[] Actors { get; set; }
+}
 
 public interface IDialogueItem
 {
@@ -141,34 +161,3 @@ public record Actor(string Name, string Color, Guid StartId)
 {
     public Guid Id { get; } = Guid.NewGuid();
 }
-
-public class DialogueHandler(EventBus bus, List<Guid> usedOptions) 
-{
-    public void Say(Actor actor, Sentence sentence)
-    {
-        AnsiConsole.Markup($"[{actor.Color}]{actor.Name}: [/][grey84]{sentence.Text}[/]\n");
-        bus.Publish(new SentenceFinishedEvent(sentence.Id));
-    }
-
-    public string Ask(Decision decision)
-    {
-        var optionsToShow = decision.Options
-            .Where(x => !x.HideAfterUsed || !usedOptions.Contains(x.Id))
-            .Select(x => x.Text);
-
-        var response = AnsiConsole.Prompt(new SelectionPrompt<string>()
-            .AddChoices(optionsToShow));
-        AnsiConsole.Markup($"[gold3_1]Ty: [/][grey84]{response}[/]\n");
-        var option = decision.Options.First(x => x.Text == response);
-        bus.Publish(new PlayerDecidedEvent(option.Id));
-        return response;
-    }
-}
-
-public interface IEvent
-{
-}
-
-public record PlayerStartedConversationEvent(Guid ActorId) : IEvent;
-public record PlayerDecidedEvent(Guid OptionId) : IEvent;
-public record SentenceFinishedEvent(Guid SentenceId) : IEvent;

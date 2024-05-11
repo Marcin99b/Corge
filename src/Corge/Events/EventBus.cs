@@ -1,10 +1,16 @@
-﻿namespace Corge;
+﻿namespace Corge.Events;
 
-public class EventBus
+public interface IEventBus
+{
+    void Publish(IEvent @event);
+    void Subscribe<T>(Action<T> action) where T : class, IEvent;
+}
+
+public class EventBus : IEventBus
 {
     private readonly Dictionary<Type, List<Action<dynamic>>> subscriptions = new();
 
-    public void Subscribe<T>(Action<T> action) 
+    public void Subscribe<T>(Action<T> action)
         where T : class, IEvent
     {
         var t = typeof(T);
@@ -12,7 +18,7 @@ public class EventBus
         if (this.subscriptions.ContainsKey(t))
         {
             this.subscriptions[t].Add(dyn);
-        } 
+        }
         else
         {
             this.subscriptions.Add(t, [dyn]);
