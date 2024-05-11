@@ -20,8 +20,4 @@ var storage = new CorgeBuilder()
             .Build()
         .Build();
 
-
-
-
-
 CorgeRunner.FromStorage(storage).Run();
