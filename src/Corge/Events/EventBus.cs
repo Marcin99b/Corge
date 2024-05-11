@@ -22,9 +22,9 @@ public class EventBus(ILifetimeScope scope) : IEventBus
         var t = typeof(E);
         var handler = scope.Resolve<H>();
         void dyn(dynamic x) => handler.Execute(x);
-        if (this.subscriptions.ContainsKey(t))
+        if (this.subscriptions.TryGetValue(t, out var value))
         {
-            this.subscriptions[t].Add(dyn);
+            value.Add(dyn);
         }
         else
         {
