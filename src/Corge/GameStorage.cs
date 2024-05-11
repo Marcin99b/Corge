@@ -22,9 +22,16 @@ public class GameStorage
 
 public class DialogueSetupHandler<T>(T prevObject, GameStorage storage, Actor actor, IDialogueItem previous)
 {
-    public DecisionBuilder<DialogueSetupHandler<T>> Decision()
+    public GameStorage Decision(
+        params Action<DecisionBuilder<DialogueSetupHandler<T>>>[] decisionConfigs)
     {
-        return new DecisionBuilder<DialogueSetupHandler<T>>(this, storage, actor, previous);
+        var builder = new DecisionBuilder<DialogueSetupHandler<T>>(this, storage, actor, previous);
+        foreach (var item in decisionConfigs)
+        {
+            item(builder);
+        }
+
+        return builder.Build();
     }
 
     public DialogueSetupHandler<DialogueSetupHandler<T>> Sentence(string text)
