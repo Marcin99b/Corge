@@ -21,5 +21,9 @@ internal class DialogueItemSelectedEventHandler(
             var option = dialogueHandler.Ask(decision);
             bus.Publish(new PlayerDecidedEvent(option.Id));
         }
+        else if (nextItem is ExitDialogue exit)
+        {
+
+        }
     }
 }

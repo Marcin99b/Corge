@@ -16,6 +16,7 @@ var storage = new CorgeBuilder()
                 .AddOption("I am... I don't remember who I am...", hideAfterUsed: true)
                     .SetAnswer("That's weird")
                     .Build()
+                .AddExitOption("Exit", hideAfterUsed: false)
                 .Build()
             .Build()
         .Build();

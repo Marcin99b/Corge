@@ -14,6 +14,8 @@ public class CorgeBuilder
 
     public class ActorDialogueBuilder(Storage s, CorgeBuilder b, string name, string color)
     {
+        public ExitDialogue Exit { get; } = new ExitDialogue();
+
         public SentenceCreatedBuilder StartFromSentence(string text)
         {
             var sentence = new Sentence(text);
@@ -24,7 +26,11 @@ public class CorgeBuilder
             return new SentenceCreatedBuilder(s, this, actor, sentence);
         }
 
-        public CorgeBuilder Build() => b;
+        public CorgeBuilder Build() 
+        {
+            s.DialogueItems.Add(this.Exit);
+            return b;
+        }
     }
 
     public class SentenceCreatedBuilder(Storage s, ActorDialogueBuilder b, Actor a, Sentence sentence)
@@ -50,6 +56,14 @@ public class CorgeBuilder
             var option = new DecisionOption(text, hideAfterUsed);
             currentOptions.Add(option);
             return new OptionBuilder(s, this, option, a);
+        }
+
+        public DecisionBuilder AddExitOption(string text, bool hideAfterUsed) 
+        {
+            var option = new DecisionOption(text, hideAfterUsed);
+            currentOptions.Add(option);
+            s.SentenceRelations.Add(new ItemRelation(a.Id, option.Id, b.Exit.Id));
+            return this;
         }
 
         public ActorDialogueBuilder Build()
@@ -158,6 +172,11 @@ public record Sentence(string Text) : IDialogueItem
 }
 
 public record Decision(DecisionOption[] Options) : IDialogueItem
+{
+    public Guid Id { get; } = Guid.NewGuid();
+}
+
+public record ExitDialogue : IDialogueItem
 {
     public Guid Id { get; } = Guid.NewGuid();
 }
