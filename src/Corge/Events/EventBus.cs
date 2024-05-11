@@ -1,20 +1,27 @@
-﻿namespace Corge.Events;
+﻿using Autofac;
+using Corge.Events.Handlers;
+
+namespace Corge.Events;
 
 public interface IEventBus
 {
     void Publish(IEvent @event);
-    void Subscribe<T>(Action<T> action) where T : class, IEvent;
+    void Subscribe<E, H>()
+        where E : class, IEvent
+        where H : class, IEventHandler<E>;
 }
 
-public class EventBus : IEventBus
+public class EventBus(ILifetimeScope scope) : IEventBus
 {
-    private readonly Dictionary<Type, List<Action<dynamic>>> subscriptions = new();
+    private readonly Dictionary<Type, List<Action<dynamic>>> subscriptions = [];
 
-    public void Subscribe<T>(Action<T> action)
-        where T : class, IEvent
+    public void Subscribe<E, H>()
+        where E : class, IEvent
+        where H : class, IEventHandler<E>
     {
-        var t = typeof(T);
-        Action<dynamic> dyn = x => action(x);
+        var t = typeof(E);
+        var handler = scope.Resolve<H>();
+        void dyn(dynamic x) => handler.Execute(x);
         if (this.subscriptions.ContainsKey(t))
         {
             this.subscriptions[t].Add(dyn);

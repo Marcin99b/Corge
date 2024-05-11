@@ -1,5 +1,4 @@
-﻿using Corge.Events;
-using Spectre.Console;
+﻿using Spectre.Console;
 
 namespace Corge;
 
@@ -9,17 +8,14 @@ public interface IDialogueHandler
     void Say(Actor actor, Sentence sentence);
 }
 
-public class DialogueHandler(EventBus bus, List<Guid> usedOptions) : IDialogueHandler
+public class DialogueHandler(Storage storage) : IDialogueHandler
 {
-    public void Say(Actor actor, Sentence sentence)
-    {
-        AnsiConsole.Markup($"[{actor.Color}]{actor.Name}: [/][grey84]{sentence.Text}[/]\n");
-    }
+    public void Say(Actor actor, Sentence sentence) => AnsiConsole.Markup($"[{actor.Color}]{actor.Name}: [/][grey84]{sentence.Text}[/]\n");
 
     public DecisionOption Ask(Decision decision)
     {
         var optionsToShow = decision.Options
-            .Where(x => !x.HideAfterUsed || !usedOptions.Contains(x.Id))
+            .Where(x => !x.HideAfterUsed || !storage.UsedOptions.Contains(x.Id))
             .Select(x => x.Text);
 
         var response = AnsiConsole.Prompt(new SelectionPrompt<string>()

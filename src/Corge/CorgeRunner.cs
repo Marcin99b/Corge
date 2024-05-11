@@ -1,13 +1,12 @@
 ﻿using Autofac;
 using Corge.Events;
+using Corge.Events.Handlers;
 
 namespace Corge;
 public class CorgeRunner
 {
     public void Run()
     {
-        var bus = new EventBus();
-
         var sentence_1 = new Sentence("Cześć");
         var sentence_2 = new Sentence("Myślałem że nie żyjesz");
 
@@ -27,7 +26,7 @@ public class CorgeRunner
                 option_3,
             ]);
 
-        var dialogueItems = new IDialogueItem[] 
+        var dialogueItems = new IDialogueItem[]
         {
             sentence_1,
             sentence_2,
@@ -41,7 +40,7 @@ public class CorgeRunner
 
         var stefan = new Actor("Stefan", "darkorange3", sentence_1.Id);
 
-        var sentenceRelations = new ItemRelation[] 
+        var sentenceRelations = new ItemRelation[]
         {
             new (stefan.Id, sentence_1.Id, sentence_2.Id),
             new (stefan.Id, sentence_2.Id, decision_1.Id),
@@ -60,69 +59,43 @@ public class CorgeRunner
             stefan
         };
 
-        var storage = new Storage()
-        {
-            Actors = actors,
-            DialogueItems = dialogueItems,
-            SentenceRelations = sentenceRelations,
-            UsedOptions = usedOptions
-        };
-
-        var dialogHandler = new DialogueHandler(bus, usedOptions);
-
         var builder = new ContainerBuilder();
 
-        builder.RegisterType<DialogueHandler>()
+        _ = builder.RegisterType<DialogueHandler>()
             .As<IDialogueHandler>()
             .SingleInstance();
 
-        builder.RegisterType<EventBus>()
+        _ = builder.RegisterType<EventBus>()
             .As<IEventBus>()
             .SingleInstance();
 
-        builder.RegisterType<Storage>()
+        _ = builder.RegisterType<Storage>()
             .AsSelf()
             .SingleInstance();
 
-        bus.Subscribe<PlayerStartedConversationEvent>(x => 
-        {
-            var actor = actors.First(actor => actor.Id == x.ActorId);
-            bus.Publish(new DialogueItemSelectedEvent(actor.Id, actor.StartId));
-        });
+        _ = builder.RegisterType<PlayerStartedConversationEventHandler>().AsSelf().SingleInstance();
+        _ = builder.RegisterType<SentenceFinishedEventHandler>().AsSelf().SingleInstance();
+        _ = builder.RegisterType<PlayerDecidedEventHandler>().AsSelf().SingleInstance();
+        _ = builder.RegisterType<DialogueItemSelectedEventHandler>().AsSelf().SingleInstance();
 
-        bus.Subscribe<SentenceFinishedEvent>(x => 
-        {
-            var relation = sentenceRelations.First(s => s.FromId == x.SentenceId);
-            bus.Publish(new DialogueItemSelectedEvent(relation.ActorId, relation.ContinueId));
-        });
+        var container = builder.Build();
 
-        bus.Subscribe<PlayerDecidedEvent>(x => 
-        {
-            usedOptions.Add(x.OptionId);
-            var relation = sentenceRelations.First(s => s.FromId == x.OptionId);
-            bus.Publish(new DialogueItemSelectedEvent(relation.ActorId, relation.ContinueId));
-        });
+        var storage = container.Resolve<Storage>();
+        storage.Actors = actors;
+        storage.DialogueItems = dialogueItems;
+        storage.SentenceRelations = sentenceRelations;
+        storage.UsedOptions = usedOptions;
 
-        bus.Subscribe<DialogueItemSelectedEvent>(x => 
-        {
-            var actor = actors.First(a => a.Id == x.ActorId);
-            var nextItem = dialogueItems.First(i => i.Id == x.ItemId);
+        var bus = container.Resolve<IEventBus>();
 
-            if (nextItem is Sentence sentence)
-            {
-                dialogHandler.Say(actor, sentence);
-                bus.Publish(new SentenceFinishedEvent(sentence.Id));
-            }
-            else if (nextItem is Decision decision)
-            {
-                var option = dialogHandler.Ask(decision);
-                bus.Publish(new PlayerDecidedEvent(option.Id));
-            }
-        });
+        bus.Subscribe<PlayerStartedConversationEvent, PlayerStartedConversationEventHandler>();
+        bus.Subscribe<SentenceFinishedEvent, SentenceFinishedEventHandler>();
+        bus.Subscribe<PlayerDecidedEvent, PlayerDecidedEventHandler>();
+        bus.Subscribe<DialogueItemSelectedEvent, DialogueItemSelectedEventHandler>();
 
         bus.Publish(new PlayerStartedConversationEvent(stefan.Id));
 
-        Console.ReadKey();
+        _ = Console.ReadKey();
     }
 }
 
@@ -131,10 +104,10 @@ public record ItemRelation(Guid ActorId, Guid FromId, Guid ContinueId, Action? A
 
 public class Storage
 {
-    public IDialogueItem[] DialogueItems { get; set; }
-    public List<Guid> UsedOptions { get; set; }
-    public ItemRelation[] SentenceRelations { get; set; }
-    public Actor[] Actors { get; set; }
+    public required IDialogueItem[] DialogueItems { get; set; }
+    public required List<Guid> UsedOptions { get; set; }
+    public required ItemRelation[] SentenceRelations { get; set; }
+    public required Actor[] Actors { get; set; }
 }
 
 public interface IDialogueItem
