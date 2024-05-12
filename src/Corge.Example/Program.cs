@@ -1,5 +1,6 @@
 ﻿using Corge;
 
+
 var gameStorage = new GameStorage()
     .Actor("Stephen", color: "darkorange3", defaultSentence: "Hello")
     .MultiSentence(
