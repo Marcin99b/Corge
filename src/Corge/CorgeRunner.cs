@@ -2,6 +2,14 @@
 using Corge.Configuration;
 using Corge.Events;
 using Corge.Events.Handlers;
+using Newtonsoft.Json;
+using Serilog;
+using Serilog.Configuration;
+using Serilog.Core;
+using Serilog.Events;
+using Serilog.Sinks.SystemConsole.Themes;
+using System.Net.Sockets;
+using System.Text;
 
 namespace Corge;
 
@@ -11,6 +19,12 @@ public class CorgeRunner(GameStorage storage)
 
     public void Run()
     {
+        using var log = new LoggerConfiguration()
+            .WriteTo.Console()
+            .WriteTo.Logtube()
+            .CreateLogger();
+        Log.Logger = log;
+
         var builder = new ContainerBuilder();
 
         _ = builder.RegisterType<DialogueHandler>()
@@ -44,34 +58,26 @@ public class CorgeRunner(GameStorage storage)
     }
 }
 
-public record ItemRelation(Guid ActorId, Guid FromId, Guid ContinueId);
-
-public interface IDialogueItem
+public static class LogtubeExtensions
 {
-    Guid Id { get; }
+    public static LoggerConfiguration Logtube(this LoggerSinkConfiguration sinkConfiguration, LogEventLevel restrictedToMinimumLevel = LogEventLevel.Verbose)
+    {
+        return sinkConfiguration.Sink(new LogtubeSink(), restrictedToMinimumLevel);
+    }
 }
 
-public record Sentence(string Text) : IDialogueItem
+public class LogtubeSink : ILogEventSink
 {
-    public Guid Id { get; } = Guid.NewGuid();
-}
+    public void Emit(LogEvent logEvent)
+    {
+        var json = JsonConvert.SerializeObject(logEvent);
 
-public record Decision(DecisionOption[] Options) : IDialogueItem
-{
-    public Guid Id { get; } = Guid.NewGuid();
-}
+        var client = new TcpClient("127.0.0.1", 8080);
+        var stream = client.GetStream();
 
-public record ExitDialogue : IDialogueItem
-{
-    public Guid Id { get; } = Guid.NewGuid();
-}
+        var bytesToSend = Encoding.UTF8.GetBytes(json);
+        stream.Write(bytesToSend, 0, bytesToSend.Length);
 
-public record DecisionOption(string Text, bool HideAfterUsed) : IDialogueItem
-{
-    public Guid Id { get; } = Guid.NewGuid();
-}
-
-public record Actor(string Name, string Color, Guid StartId)
-{
-    public Guid Id { get; } = Guid.NewGuid();
+        client.Close();
+    }
 }

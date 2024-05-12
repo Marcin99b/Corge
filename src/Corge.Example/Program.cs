@@ -1,4 +1,5 @@
 ﻿using Corge;
+using Corge.Configuration;
 
 
 var gameStorage = new GameStorage()

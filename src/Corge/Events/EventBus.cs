@@ -1,5 +1,6 @@
 ﻿using Autofac;
 using Corge.Events.Handlers;
+using Serilog;
 
 namespace Corge.Events;
 
@@ -30,12 +31,16 @@ public class EventBus(ILifetimeScope scope) : IEventBus
         {
             this.subscriptions.Add(t, [dyn]);
         }
+
+        Log.Information("{EventName} {Value}", "EventSubscribed", t.Name);
     }
 
     public void Publish(IEvent @event)
     {
-        if (this.subscriptions.TryGetValue(@event.GetType(), out var list))
+        var t = @event.GetType();
+        if (this.subscriptions.TryGetValue(t, out var list))
         {
+            Log.Information("{EventName} {Value}", "EventInvoked", t.Name);
             foreach (var item in list)
             {
                 item(@event);
