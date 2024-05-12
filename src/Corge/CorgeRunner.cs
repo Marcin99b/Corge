@@ -1,4 +1,5 @@
 ﻿using Autofac;
+using Corge.Configuration;
 using Corge.Events;
 using Corge.Events.Handlers;
 

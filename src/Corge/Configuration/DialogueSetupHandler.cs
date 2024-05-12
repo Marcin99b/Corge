@@ -1,4 +1,4 @@
-﻿namespace Corge;
+﻿namespace Corge.Configuration;
 
 public class DialogueSetupHandler<T>(T prevObject, GameStorage storage, Actor actor, IDialogueItem previous)
 {

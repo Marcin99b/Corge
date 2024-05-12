@@ -1,4 +1,4 @@
-﻿namespace Corge;
+﻿namespace Corge.Configuration;
 
 public class DecisionBuilder<T>(T prevObject, GameStorage storage, Actor actor, IDialogueItem previous)
 {
@@ -69,11 +69,11 @@ public class DecisionBuilder<T>(T prevObject, GameStorage storage, Actor actor, 
     public GameStorage Build()
     {
         dynamic obj = this.Return()!;
-        while (obj is not GameStorage) 
+        while (obj is not GameStorage)
         {
             obj = obj!.Return();
         }
 
-        return (GameStorage) obj;
+        return (GameStorage)obj;
     }
 }

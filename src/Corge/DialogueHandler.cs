@@ -1,4 +1,5 @@
-﻿using Spectre.Console;
+﻿using Corge.Configuration;
+using Spectre.Console;
 
 namespace Corge;
 

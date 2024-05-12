@@ -1,4 +1,4 @@
-﻿namespace Corge;
+﻿namespace Corge.Configuration;
 
 public class GameStorage
 {
